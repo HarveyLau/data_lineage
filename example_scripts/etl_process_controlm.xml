@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Control-M Job Definition for ETL Process
+  This job runs on sas-system VM and processes data from:
+  - CSV file on sas-system: /var/data/incoming/transactions_20240101.csv
+  - PostgreSQL table on seed-db: customers
+-->
+<FOLDER>
+  <JOB>
+    <JOBNAME>daily_etl_process</JOBNAME>
+    <NODEID>sas-system</NODEID>
+    <CMDLINE>/usr/bin/sas /var/scripts/daily_etl_process.sas</CMDLINE>
+    <MEMNAME>daily_etl_process.sas</MEMNAME>
+    <DESCRIPTION>Extract customer data, transform, and load to warehouse</DESCRIPTION>
+    
+    <!-- Input File Source: CSV on sas-system VM -->
+    <INCOND>
+      <NAME>file_ready</NAME>
+      <ODATE>ODAT</ODATE>
+    </INCOND>
+    <VARIABLE>
+      <NAME>INPUT_FILE</NAME>
+      <VALUE>/var/data/incoming/transactions_20240101.csv</VALUE>
+      <DESCRIPTION>Input CSV file path on sas-system</DESCRIPTION>
+    </VARIABLE>
+    
+    <!-- Database Connection: PostgreSQL on seed-db VM -->
+    <VARIABLE>
+      <NAME>DB_HOST</NAME>
+      <VALUE>seed-db</VALUE>
+      <DESCRIPTION>PostgreSQL database host</DESCRIPTION>
+    </VARIABLE>
+    <VARIABLE>
+      <NAME>DB_PORT</NAME>
+      <VALUE>5432</VALUE>
+      <DESCRIPTION>PostgreSQL database port</DESCRIPTION>
+    </VARIABLE>
+    <VARIABLE>
+      <NAME>DB_NAME</NAME>
+      <VALUE>seed_db</VALUE>
+      <DESCRIPTION>PostgreSQL database name</DESCRIPTION>
+    </VARIABLE>
+    <VARIABLE>
+      <NAME>DB_SCHEMA</NAME>
+      <VALUE>public</VALUE>
+      <DESCRIPTION>PostgreSQL schema name</DESCRIPTION>
+    </VARIABLE>
+    <VARIABLE>
+      <NAME>DB_TABLE</NAME>
+      <VALUE>customers</VALUE>
+      <DESCRIPTION>Source table name</DESCRIPTION>
+    </VARIABLE>
+    
+    <!-- Output Target -->
+    <VARIABLE>
+      <NAME>OUTPUT_FILE</NAME>
+      <VALUE>/var/reports/high_value_sales_report.xlsx</VALUE>
+      <DESCRIPTION>Output report file path on sas-system</DESCRIPTION>
+    </VARIABLE>
+    
+    <!-- Job Dependencies -->
+    <OUTCOND>
+      <NAME>etl_complete</NAME>
+      <ODATE>ODAT</ODATE>
+    </OUTCOND>
+  </JOB>
+</FOLDER>
