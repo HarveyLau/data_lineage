@@ -17,7 +17,7 @@
 ### 2. seed-db VM
 - **用途**: PostgreSQL数据库，包含源数据表
 - **连接信息**: 
-  - Host: `seed-db` (Docker网络) 或 `localhost:5434` (从宿主机，端口已从5433改为5434以避免与marquez-db冲突)
+- Host: `seed-db` (Docker网络) 或 `localhost:5434` (从宿主机)
   - Database: `seed_db`
   - Username: `seeduser`
   - Password: `seedpass123`
