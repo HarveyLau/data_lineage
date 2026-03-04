@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: lineage_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lineage_app_db
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - lineage_net
+
+  gravitino:
+    image: datastratosandbox/enterprise:gravitino-hsbc-vault-1.2.0
+    container_name: lineage_gravitino
+    ports:
+      - "8090:8090"
+    environment:
+      - GRAVITINO_DATABASE_BACKEND=jdbc
+      - GRAVITINO_JDBC_URL=jdbc:postgresql://postgres:5432/gravitino_db
+      - GRAVITINO_JDBC_USER=user
+      - GRAVITINO_JDBC_PASSWORD=password
+      - GRAVITINO_JDBC_DRIVER=org.postgresql.Driver
+      - GRAVITINO_USE_WEB_V2=true
+    depends_on:
+      - postgres
+    networks:
+      - lineage_net
+
+  # --- Marquez Services ---
+  marquez-db:
+    image: postgres:14
+    container_name: marquez_db
+    environment:
+      - POSTGRES_USER=marquez
+      - POSTGRES_PASSWORD=marquez
+      - POSTGRES_DB=marquez
+    ports:
+      - "5433:5432" # Avoid conflict with main postgres
+    networks:
+      - lineage_net
+    volumes:
+      - marquez_db_data:/var/lib/postgresql/data
+
+  marquez-api:
+    image: marquezproject/marquez:0.48.0
+    container_name: marquez_api
+    environment:
+      - MARQUEZ_PORT=5000
+      - MARQUEZ_ADMIN_PORT=5001
+      - POSTGRES_USER=marquez
+      - POSTGRES_PASSWORD=marquez
+      - POSTGRES_HOST=marquez-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=marquez
+      - MARQUEZ_CONFIG=marquez.yml
+    volumes:
+      - ./marquez.yml:/usr/src/app/marquez.yml
+    ports:
+      - "5002:5000" # Mapped to 5002 to avoid conflict with AirPlay (port 5000)
+      - "5001:5001"
+    depends_on:
+      - marquez-db
+    networks:
+      - lineage_net
+    entrypoint: ["/bin/bash", "-c", "./entrypoint.sh"]
+
+  marquez-web:
+    image: marquezproject/marquez-web:0.48.0
+    container_name: marquez_web
+    environment:
+      - MARQUEZ_HOST=marquez-api
+      - MARQUEZ_PORT=5000
+    ports:
+      - "3001:3000" # Map to 3001 to avoid conflict with our frontend
+    depends_on:
+      - marquez-api
+    networks:
+      - lineage_net
+
+  # --- Simulated VM Services ---
+  sas-system:
+    build: ./sas-system
+    container_name: sas_system_vm
+    ports:
+      - "2222:22"
+    networks:
+      - lineage_net
+    hostname: sas-system
+
+  seed-db:
+    image: postgres:15
+    container_name: seed_db_vm
+    environment:
+      POSTGRES_USER: seeduser
+      POSTGRES_PASSWORD: seedpass123
+      POSTGRES_DB: seed_db
+    volumes:
+      - ./seed-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - seed_db_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - lineage_net
+    hostname: seed-db
+
+  # --- App Services ---
+  backend:
+    build: ../backend
+    container_name: lineage_backend
+    volumes:
+      - ../backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/lineage_app_db
+      - GRAVITINO_URL=http://gravitino:8090
+      - GEMINI_API_KEY=AIzaSyAqiguu6g_bfo4ACdTpyyyjkEtnqFqNqTU
+      - OLLAMA_URL=http://host.docker.internal:11434 
+      - ENCRYPTION_KEY=change_this_to_a_secure_key_in_production
+      - MARQUEZ_URL=http://marquez-api:5000
+      - OPENLINEAGE_REQUIRE_API_KEY=true
+      - OPENLINEAGE_API_KEYS=dev-openlineage-read-key
+      - OPENLINEAGE_ADMIN_KEY=dev-openlineage-admin-key
+    depends_on:
+      - postgres
+      - gravitino
+      - marquez-api
+    networks:
+      - lineage_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build: ../frontend
+    container_name: lineage_frontend
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
+      - REACT_APP_MARQUEZ_URL=http://localhost:3001
+    depends_on:
+      - backend
+    networks:
+      - lineage_net
+
+networks:
+  lineage_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  marquez_data:
+  marquez_db_data:
+  seed_db_data:

@@ -1,10 +1,9 @@
-backend/
-frontend/
-docker/
-scripts/
 .venv/
+node_modules/
 __pycache__/
 .DS_Store
 *.pyc
 .env
 
+# Docker release bundles (large offline images ~2.9G)
+docker/release/

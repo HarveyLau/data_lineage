@@ -1,0 +1,16 @@
+fastapi>=0.100.0
+uvicorn>=0.23.0
+sqlalchemy>=2.0.0
+alembic>=1.11.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+requests>=2.31.0
+paramiko>=3.3.1  # For SSH connections (MCP implementation)
+cryptography>=41.0.0  # For credential encryption
+psycopg2-binary>=2.9.0
+pymysql
+oracledb
+mcp>=0.1.0 # Placeholder for MCP SDK if available, or we implement custom
+langchain>=0.0.300 # Optional, for LLM handling
+google-genai
