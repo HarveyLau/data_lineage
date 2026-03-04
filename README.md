@@ -71,6 +71,9 @@ Key environment variables are in `docker/docker-compose.yml`.
 - `GRAVITINO_URL`: Gravitino API base
 - `MARQUEZ_URL`: Marquez API base
 - `GEMINI_API_KEY`: Google Gemini API key
+- `OPENLINEAGE_REQUIRE_API_KEY`: enable/disable API key auth for read APIs
+- `OPENLINEAGE_API_KEYS`: comma-separated API keys for `/api/v1/openlineage/*`
+- `OPENLINEAGE_ADMIN_KEY`: admin key for managing OpenLineage API keys
 
 ## Usage
 
@@ -101,7 +104,58 @@ No change is needed to Gravitino or the app DB credentials unless you modify the
 
 - Backend converts AI lineage into OpenLineage events.
 - Events are sent to Marquez at `/api/v1/lineage`.
+- Each import now persists OpenLineage event history locally in app DB
+  (`START` + `COMPLETE/FAIL`) so lineage events remain queryable even if external systems are unavailable.
 - Marquez UI is embedded in the frontend (second tab).
+
+## OpenLineage Read APIs (for external systems)
+
+The backend exposes OpenLineage-structured data for downstream systems:
+
+- `GET /api/v1/openlineage/events`
+  - Query by `run_id`, `job_namespace`, `job_name`, `event_type`,
+    `dataset_namespace`, `dataset_name`, `since`, `until`, `limit`, `offset`
+- `GET /api/v1/openlineage/runs/{run_id}`
+- `GET /api/v1/openlineage/jobs/{job_namespace}/{job_name}`
+- `GET /api/v1/openlineage/jobs/events?job_namespace=...&job_name=...`
+- `GET /api/v1/openlineage/datasets/{dataset_namespace}/{dataset_name}/events`
+- `GET /api/v1/openlineage/datasets/events?dataset_namespace=...&dataset_name=...`
+
+All responses include standard OpenLineage payloads in `payload`.
+
+Authentication:
+- Include `X-API-Key: <key>` (or `Authorization: Bearer <key>`) for all `/api/v1/openlineage/*` APIs.
+- Default local key in Docker Compose: `dev-openlineage-read-key`.
+
+Audit:
+- Every OpenLineage read request (allowed or denied) is recorded in `openlineage_access_audits`.
+
+## OpenLineage API Key Management
+
+Admin endpoints (protected by `X-Admin-Key` or `Authorization: Bearer <admin-key>`):
+
+- `POST /api/v1/openlineage/admin/keys`
+  - Create managed API key (stored hashed in DB, plaintext returned once)
+  - Optional policy fields:
+    - `allowed_job_namespaces` (list)
+    - `allowed_dataset_namespaces` (list)
+    - `requests_per_minute` (int)
+    - `requests_per_day` (int)
+- `GET /api/v1/openlineage/admin/keys`
+  - List API key metadata (no plaintext)
+- `POST /api/v1/openlineage/admin/keys/{key_id}/revoke`
+  - Revoke key
+- `POST /api/v1/openlineage/admin/keys/{key_id}/rotate`
+  - Revoke old key and issue new key (can override policy)
+
+Default local admin key in Docker Compose: `dev-openlineage-admin-key`.
+
+Scoped keys:
+- If a key has namespace scopes, access is restricted to those scopes.
+- For `/api/v1/openlineage/events`, scoped keys must include namespace filters in query.
+
+Rate limiting and quota:
+- If configured on key policy, requests exceeding `requests_per_minute` or `requests_per_day` receive `429`.
 
 ## Simulated VMs
 
