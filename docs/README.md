@@ -2,6 +2,10 @@
 
 主入口请先阅读根目录 `README.md`。
 
+## 架构图
+
+- `docs/architecture.excalidraw.json`：High-level 架构图（Excalidraw 格式）。在 Cursor 中安装 Excalidraw 插件后，直接打开此文件即可查看/编辑。
+
 ## 功能与评审
 
 - `docs/FEATURE_REVIEW.md`：已完成功能评审、风险与改进建议。
