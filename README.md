@@ -20,6 +20,41 @@ AI-assisted data lineage platform for Control-M XML and script inputs (SAS/Pytho
 - Visualization: Marquez API + Web.
 - AI: Gemini (`google-genai`), with deterministic fallback behavior.
 
+### Pipeline overview
+
+![AI Data Lineage pipeline](docs/architecture.png)
+
+```mermaid
+flowchart TB
+  subgraph input[" "]
+    A[① 文件上传<br/>Control-M XML / SAS / Python / Shell]
+  end
+  B[② 解析 ParserService<br/>Job、远程资源、DB 连接]
+  C[③ ETL Job + Run<br/>OpenLineage Run ID]
+  D[④ OpenLineage START 事件]
+  E{有远程资源?}
+  F[⑤ 凭证查找]
+  G[⑥ 远程数据读取<br/>Linux / RDB / BigQuery / S3 / Data Lake]
+  H[⑦ AI 血缘推断<br/>Gemini → sources/targets]
+  I[⑧ 注册元数据 Gravitino]
+  J[⑨ OpenLineage COMPLETE]
+  K[App DB 持久化]
+  L[Marquez]
+  M[其它可视化/治理<br/>DataHub, Atlan, 自研 BI]
+
+  A --> B --> C --> D --> E
+  D -.-> K
+  D -.-> L
+  E -->|Yes| F --> G --> H
+  E -->|No| H
+  H --> I --> J
+  J --> K
+  J --> L
+  J --> M
+```
+
+*Detailed editable diagram: [docs/architecture.excalidraw.json](docs/architecture.excalidraw.json) — open in [Excalidraw](https://excalidraw.com). To use as image in README: export to PNG as `docs/architecture.png`.*
+
 ## Repository Structure
 
 ```text
